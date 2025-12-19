@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NORTHSTAR AS10</title>
+  <style>
+    :root { color-scheme: dark; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b0b12;
+      display:grid;
+      place-items:center;
+      min-height:100vh;
+    }
+
+    /* --- cheap calculator shell --- */
+    .calc{
+      width: 360px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #1a1a22 0%, #101018 100%);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 28px 70px rgba(0,0,0,.55);
+      padding: 16px;
+    }
+
+    .top{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    /* solar panel */
+    .solar{
+      flex: 0 0 145px;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.10);
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.15)),
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255,.08) 0px,
+          rgba(255,255,255,.08) 2px,
+          rgba(0,0,0,.0) 2px,
+          rgba(0,0,0,.0) 10px
+        ),
+        linear-gradient(135deg, #3a2b1f 0%, #2a1f17 40%, #1f1612 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+    }
+
+    /* display like a $5 calc */
+    .display{
+      flex: 1 1 auto;
+      height: 54px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, #cfd6c4 0%, #aeb8a0 100%);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,.35),
+        inset 0 -8px 18px rgba(0,0,0,.18);
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      overflow:hidden;
+    }
+
+    .digits{
+      font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-weight: 700;
+      font-size: 34px;
+      letter-spacing: 1px;
+      color:#0b1410;
+      text-shadow: 0 1px 0 rgba(255,255,255,.35);
+      white-space: nowrap;
+      transform: translateY(1px);
+    }
+
+    /* keys */
+    .keys{
+      display:grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+      align-items: center;
+    }
+
+    button{
+      height: 54px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, #2a2a36 0%, #1c1c26 100%);
+      box-shadow:
+        0 6px 0 rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.10);
+      color:#e9e9f4;
+      font-size: 18px;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    button:hover{ filter: brightness(1.08); }
+    button:active{
+      transform: translateY(4px);
+      box-shadow:
+        0 2px 0 rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.10);
+    }
+
+    .op{
+      background: linear-gradient(180deg, #33405c 0%, #222c40 100%);
+    }
+    .clear{
+      background: linear-gradient(180deg, #5a2c2c 0%, #3a1c1c 100%);
+    }
+    .eq{
+      background: linear-gradient(180deg, #2f5a3a 0%, #1f3e29 100%);
+    }
+
+    /* 10-digit-ish feel */
+    @media (max-width: 420px){
+      .calc{ width: 92vw; }
+      .digits{ font-size: 30px; }
+      button{ height: 50px; }
+      .solar{ flex-basis: 130px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="calc" role="application" aria-label="NORTHSTAR AS10">
+    <div class="top">
+      <div class="solar" aria-hidden="true"></div>
+      <div class="display" aria-live="polite">
+        <div class="digits" id="disp">0</div>
+      </div>
+    </div>
+
+    <div class="keys" id="keys">
+      <!-- number line -->
+      <button data-k="0">0</button>
+      <button data-k="1">1</button>
+      <button data-k="2">2</button>
+      <button data-k="3">3</button>
+      <button data-k="4">4</button>
+      <button data-k="5">5</button>
+      <button data-k="6">6</button>
+      <button data-k="7">7</button>
+      <button data-k="8">8</button>
+      <button data-k="9">9</button>
+
+      <!-- operators row -->
+      <button class="op" data-k="+">+</button>
+      <button class="op" data-k="-">−</button>
+      <button class="clear" data-k="C">C</button>
+      <button class="eq" data-k="=">=</button>
+    </div>
+  </div>
+
+  <script>
+    const disp = document.getElementById("disp");
+    const keys = document.getElementById("keys");
+
+    // State: integer-only, + and - only
+    let current = "0";     // number being typed
+    let total = 0;         // running total
+    let op = null;         // '+', '-', or null
+    let resetCurrent = false;
+
+    function update() {
+      // keep it looking like a cheap calc: clamp visual length (not advertising text)
+      disp.textContent = current;
+    }
+
+    function clearAll() {
+      current = "0";
+      total = 0;
+      op = null;
+      resetCurrent = false;
+      update();
+    }
+
+    function applyOp(value) {
+      if (op === null) total = value;
+      else if (op === "+") total += value;
+      else if (op === "-") total -= value;
+    }
+
+    function pressDigit(d) {
+      if (resetCurrent) {
+        current = "0";
+        resetCurrent = false;
+      }
+      if (current === "0") current = d;
+      else current += d;
+      update();
+    }
+
+    function pressOperator(newOp) {
+      const value = Number(current);
+      applyOp(value);
+      op = newOp;
+      current = String(total);
+      resetCurrent = true;
+      update();
+    }
+
+    function pressEquals() {
+      const value = Number(current);
+      applyOp(value);
+      op = null;
+      current = String(total);
+      resetCurrent = true;
+      update();
+    }
+
+    function pressKey(k) {
+      if (k >= "0" && k <= "9") return pressDigit(k);
+      if (k === "+" || k === "-") return pressOperator(k);
+      if (k === "C") return clearAll();
+      if (k === "=") return pressEquals();
+    }
+
+    keys.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      pressKey(btn.dataset.k);
+    });
+
+    // Keyboard support (still no extra on-page text)
+    window.addEventListener("keydown", (e) => {
+      const k = e.key;
+      if (k >= "0" && k <= "9") pressKey(k);
+      else if (k === "+" ) pressKey("+");
+      else if (k === "-" ) pressKey("-");
+      else if (k === "Enter" || k === "=") pressKey("=");
+      else if (k === "Escape") pressKey("C");
+    });
+
+    update();
+  </script>
+</body>
+</html>
