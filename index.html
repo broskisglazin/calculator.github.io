@@ -4,29 +4,34 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NORTHSTAR Calculators</title>
-  <meta name="description" content="NORTHSTAR Calculators — Model selector." />
   <style>
     :root { color-scheme: dark; }
     body{
       margin:0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 800px at 20% 10%, #1a1a2e 0%, #0b0b12 55%, #07070c 100%);
       color:#ececf6;
+
+      /* smooth background (no banded “bars”) */
+      background:
+        radial-gradient(1200px 900px at 25% 15%, rgba(92,92,255,.22), transparent 60%),
+        radial-gradient(900px 700px at 80% 70%, rgba(120,120,180,.14), transparent 55%),
+        linear-gradient(180deg, #090911 0%, #07070c 100%);
+      min-height: 100vh;
     }
+
     .wrap{ max-width: 980px; margin: 0 auto; padding: 28px 18px 48px; }
+
     .top{
-      display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
-      margin-bottom: 22px;
+      display:flex; align-items:center; justify-content:flex-start; gap:12px; flex-wrap:wrap;
+      margin-bottom: 18px;
     }
-    .brand{
-      display:flex; align-items:center; gap:12px;
-    }
-    /* “Maybe a logo”: simple SVG-like badge made in CSS (no image files needed) */
+
     .logo{
       width:42px; height:42px; border-radius: 14px;
       background: linear-gradient(135deg, #f6f6ff 0%, #b9b9ff 35%, #5b5bff 70%, #2a2aff 100%);
       box-shadow: 0 10px 30px rgba(60,60,255,.22);
       position:relative;
+      flex: 0 0 auto;
     }
     .logo:before{
       content:"✦";
@@ -37,8 +42,8 @@
       font-size:22px;
       transform: translateY(-1px);
     }
+
     h1{ margin:0; font-size:22px; letter-spacing:.6px; }
-    .sub{ margin:4px 0 0; opacity:.75; font-size:13px; }
 
     .card{
       background: rgba(18,18,28,.70);
@@ -50,6 +55,7 @@
 
     .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     label{ font-size:13px; opacity:.78; }
+
     select{
       background:#0f0f18; color:#ececf6;
       border:1px solid rgba(120,120,180,.35);
@@ -63,6 +69,7 @@
       margin-top: 16px;
       display:grid; grid-template-columns: 1fr; gap:12px;
     }
+
     .modelCard{
       border-radius: 18px;
       border: 1px solid rgba(120,120,180,.25);
@@ -70,8 +77,18 @@
       padding: 18px;
       display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
     }
+
     .modelTitle{ font-size: 18px; margin:0; }
-    .modelMeta{ margin:6px 0 0; opacity:.75; font-size: 13px; line-height:1.4; }
+
+    .pill{
+      display:inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(150,150,220,.35);
+      font-size: 12px;
+      opacity:.85;
+      margin-left: 8px;
+    }
 
     .btn{
       appearance:none;
@@ -90,71 +107,32 @@
     }
     .btn:hover{ filter: brightness(1.12); }
     .btn:active{ transform: translateY(1px); }
-
-    .pill{
-      display:inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(150,150,220,.35);
-      font-size: 12px;
-      opacity:.85;
-      margin-left: 8px;
-    }
-
-    .footer{
-      margin-top: 18px;
-      opacity:.7;
-      font-size: 12px;
-      line-height:1.5;
-    }
-    code{
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      padding: 2px 6px;
-      border-radius: 10px;
-    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
-      <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <div>
-          <h1>NORTHSTAR Calculators</h1>
-          <div class="sub">Choose a model.</div>
-        </div>
-      </div>
+      <div class="logo" aria-hidden="true"></div>
+      <h1>NORTHSTAR Calculators</h1>
     </div>
 
     <div class="card">
       <div class="row">
         <label>Model:</label>
         <select disabled>
-          <option selected>NORTHSTAR AS10 — Add / Subtract (10-digit)</option>
+          <option selected>NORTHSTAR AS10</option>
         </select>
       </div>
 
       <div class="model">
         <div class="modelCard">
-          <div>
-            <p class="modelTitle">
-              NORTHSTAR AS10 <span class="pill">AS10</span>
-            </p>
-            <p class="modelMeta">
-              Add + Subtract only.
-            </p>
-          </div>
+          <p class="modelTitle">NORTHSTAR AS10 <span class="pill">AS10</span></p>
 
           <a class="btn" href="https://nsas10.github.io/" rel="noopener">
-            Open AS10
+            Open
             <span aria-hidden="true">→</span>
           </a>
         </div>
-      </div>
-
-      <div class="footer">
-        This page is just the launcher. The AS10 app lives at <code>nsas10.github.io</code>.
       </div>
     </div>
   </div>
