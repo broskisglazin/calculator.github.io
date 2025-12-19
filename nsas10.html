@@ -15,7 +15,7 @@
   }
 
   .calc{
-    width: 460px; /* expanded so 10 digits always fit comfortably */
+    width: 460px;
     padding: 18px;
     border-radius: 24px;
     background: linear-gradient(180deg,#1a1a22,#101018);
@@ -39,15 +39,16 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
   }
 
+  /* slightly darker green */
   .display{
     flex:1;
     height: 64px;
     border-radius: 12px;
-    background: linear-gradient(#cfd6c4,#aeb8a0);
-    border: 1px solid rgba(0,0,0,.25);
+    background: linear-gradient(#bfc7b2,#9eaa92);
+    border: 1px solid rgba(0,0,0,.28);
     box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.45),
-      inset 0 -10px 20px rgba(0,0,0,.18);
+      inset 0 3px 0 rgba(255,255,255,.35),
+      inset 0 -10px 20px rgba(0,0,0,.20);
     padding: 0 12px;
     display:flex;
     align-items:center;
@@ -124,12 +125,19 @@
 <script>
   const svg = document.getElementById("seg");
 
-  let current = "0";
-  let total = 0;
-  let op = null;
+  // --- integer-only / BigInt for perfect digit counting ---
+  let current = "0";      // typed digits
+  let total = 0n;         // BigInt running total
+  let op = null;          // "+", "-" or null
   let reset = false;
+  let overflow = false;
 
   const MAX_DIGITS = 10;
+  const LIMIT = 10n ** 10n; // >= 10^10 => 11+ digits (overflow), max allowed is 9,999,999,999
+
+  // Cursor blink
+  let cursorOn = true;
+  setInterval(() => { cursorOn = !cursorOn; update(); }, 550);
 
   // 7-seg mapping (a b c d e f g)
   const DIG = {
@@ -143,67 +151,84 @@
     "7": [1,1,1,0,0,0,0],
     "8": [1,1,1,1,1,1,1],
     "9": [1,1,1,1,0,1,1],
-    "-": [0,0,0,0,0,0,1]
+    "-": [0,0,0,0,0,0,1],
+
+    // Letters approximated in 7-seg for OVERFLOW
+    "O": [1,1,1,1,1,1,0],
+    "V": [0,1,1,1,1,1,0], // like U
+    "E": [1,0,0,1,1,1,1],
+    "R": [1,1,0,0,1,1,1], // like P-ish
+    "F": [1,0,0,0,1,1,1],
+    "L": [0,0,0,1,1,1,0],
+    "W": [0,1,1,1,1,1,0]  // like U
   };
 
-  function clampForDisplay(s){
-    s = String(s);
-    if (s.length <= MAX_DIGITS) return s;
-    if (s[0] === "-") return "-" + s.slice(-(MAX_DIGITS-1));
-    return s.slice(-MAX_DIGITS);
+  function absBigInt(x){ return x < 0n ? -x : x; }
+
+  function isOverflowValue(x){
+    return absBigInt(x) >= LIMIT; // 11+ digits
   }
 
   function clearSVG(){
     while (svg.firstChild) svg.removeChild(svg.firstChild);
   }
 
-  function line(x1,y1,x2,y2,stroke,w){
+  function line(x1,y1,x2,y2,stroke,w,cap="square"){
     const el = document.createElementNS("http://www.w3.org/2000/svg","line");
     el.setAttribute("x1",x1); el.setAttribute("y1",y1);
     el.setAttribute("x2",x2); el.setAttribute("y2",y2);
     el.setAttribute("stroke",stroke);
     el.setAttribute("stroke-width",w);
-    el.setAttribute("stroke-linecap","square");
+    el.setAttribute("stroke-linecap",cap);
     return el;
   }
 
-  function render7Seg(text){
-    const s = clampForDisplay(text);
+  function clampForDisplayDigitsOnly(s){
+    s = String(s);
+    if (s[0] === "-"){
+      const digits = s.slice(1);
+      if (digits.length <= MAX_DIGITS) return s;
+      return "-" + digits.slice(-MAX_DIGITS);
+    }
+    if (s.length <= MAX_DIGITS) return s;
+    return s.slice(-MAX_DIGITS);
+  }
+
+  function render7Seg(text, showCursor){
     clearSVG();
 
+    // Use actual rendered size so it NEVER clips
     const W = svg.clientWidth || 340;
     const H = svg.clientHeight || 64;
-
-    // force enough horizontal space so 10 digits never squish or clip
     const FORCE_W = Math.max(W, 340);
+
     svg.setAttribute("viewBox", `0 0 ${FORCE_W} ${H}`);
 
-    // slightly wider digits / spacing for readability
     const dw = 26;
     const dh = 46;
     const gap = 7;
     const stroke = 5;
     const pad = 10;
+    const p = 4;
+
+    // lighter ink + way fainter off segments
+    const on  = "rgba(10,18,14,.68)";
+    const off = "rgba(10,18,14,.045)";
+
+    const s = String(text);
 
     const n = s.length;
     const totalW = n * dw + (n - 1) * gap;
 
-    // Right align with padding; vertical center
-    let x = Math.max(pad, FORCE_W - pad - totalW);
-    const y = (H - dh) / 2;
-
-    // lighter "ink" + much fainter off segments
-    const on  = "rgba(10,18,14,.72)";
-    const off = "rgba(10,18,14,.06)";
+    // Right align digits, vertical center
+    const xStart = Math.max(pad, FORCE_W - pad - totalW);
+    const y0 = (H - dh) / 2;
 
     for (let i = 0; i < n; i++){
       const ch = s[i];
       const seg = DIG[ch] || DIG["0"];
 
-      const x0 = x + i * (dw + gap);
-      const y0 = y;
-
-      const p = 4;
+      const x0 = xStart + i * (dw + gap);
 
       const a = [x0+p,      y0+p,        x0+dw-p,   y0+p];
       const b = [x0+dw-p,   y0+p,        x0+dw-p,   y0+dh/2-p];
@@ -220,54 +245,108 @@
         svg.appendChild(line(x1,y1,x2,y2, seg[k] ? on : off, stroke));
       }
     }
+
+    // Blinking cursor at the typing edge (after last digit, right-aligned)
+    if (showCursor){
+      const cursorX = Math.min(FORCE_W - pad + 1, xStart + totalW + 4);
+      const cy1 = y0 + 8;
+      const cy2 = y0 + dh - 8;
+      if (cursorOn){
+        svg.appendChild(line(cursorX, cy1, cursorX, cy2, "rgba(10,18,14,.55)", 3, "round"));
+      }
+    }
   }
 
-  function update(){ render7Seg(current); }
+  function update(){
+    if (overflow){
+      render7Seg("OVERFLOW", false);
+      return;
+    }
+    render7Seg(current, true);
+  }
 
   function clearAll(){
-    current = "0"; total = 0; op = null; reset = false;
+    current = "0";
+    total = 0n;
+    op = null;
+    reset = false;
+    overflow = false;
     update();
   }
 
-  function apply(v){
-    if (op === null) total = v;
-    else if (op === "+") total += v;
-    else if (op === "-") total -= v;
+  function apply(value){
+    if (op === null) total = value;
+    else if (op === "+") total = total + value;
+    else if (op === "-") total = total - value;
+
+    if (isOverflowValue(total)){
+      overflow = true;
+    }
   }
 
   function digit(d){
+    if (overflow) return;
     if (reset){ current="0"; reset=false; }
-    if (current.length >= MAX_DIGITS) return; // HARD CAP
-    current = (current === "0") ? d : (current + d);
+
+    if (current === "0") current = d;
+    else{
+      if (current.length >= MAX_DIGITS) return; // HARD CAP: ignore input
+      current += d;
+    }
+
+    // cap still applies if "0" was replaced
+    if (current.length > MAX_DIGITS) current = current.slice(0, MAX_DIGITS);
+
     update();
   }
 
+  function toBigIntSafe(s){
+    // current is digits only by design
+    try { return BigInt(s); } catch { return 0n; }
+  }
+
   function oper(o){
-    apply(+current);
+    if (overflow) return;
+
+    const value = toBigIntSafe(current);
+    apply(value);
+
+    if (overflow){ update(); return; }
+
     op = o;
-    current = clampForDisplay(total);
+    current = clampForDisplayDigitsOnly(total.toString().replace("-", "-"));
     reset = true;
     update();
   }
 
   function equals(){
-    apply(+current);
+    if (overflow) return;
+
+    const value = toBigIntSafe(current);
+    apply(value);
+
+    if (overflow){ update(); return; }
+
     op = null;
-    current = clampForDisplay(total);
+    current = clampForDisplayDigitsOnly(total.toString());
     reset = true;
     update();
   }
 
-  document.body.addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const k = b.dataset.k;
+  function press(k){
+    if (k === "C"){ clearAll(); return; }
+    if (overflow) return;
 
     if (k >= "0" && k <= "9") digit(k);
     else if (k === "+") oper("+");
     else if (k === "-" || k === "−") oper("-");
     else if (k === "=") equals();
-    else if (k === "C") clearAll();
+  }
+
+  document.body.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    press(b.dataset.k);
   });
 
   window.addEventListener("resize", update);
