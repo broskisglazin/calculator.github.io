@@ -15,7 +15,7 @@
   }
 
   .calc{
-    width: 410px;
+    width: 460px; /* expanded so 10 digits always fit comfortably */
     padding: 18px;
     border-radius: 24px;
     background: linear-gradient(180deg,#1a1a22,#101018);
@@ -28,9 +28,8 @@
     margin-bottom:16px;
   }
 
-  /* Solar panel same height as display */
   .solar{
-    width: 165px;
+    width: 175px;
     height: 64px;
     border-radius: 12px;
     background:
@@ -49,14 +48,13 @@
     box-shadow:
       inset 0 3px 0 rgba(255,255,255,.45),
       inset 0 -10px 20px rgba(0,0,0,.18);
-    padding: 0 10px;          /* padding but no clipping */
+    padding: 0 12px;
     display:flex;
-    align-items:center;        /* TRUE vertical center */
-    justify-content:center;    /* SVG will right-align internally */
+    align-items:center;
+    justify-content:center;
     overflow:hidden;
   }
 
-  /* SVG fills display and we right-align in drawing code */
   #seg{
     width: 100%;
     height: 100%;
@@ -103,9 +101,8 @@
   <div class="calc">
     <div class="top">
       <div class="solar"></div>
-
       <div class="display">
-        <svg id="seg" viewBox="0 0 300 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+        <svg id="seg" viewBox="0 0 340 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
       </div>
     </div>
 
@@ -127,13 +124,11 @@
 <script>
   const svg = document.getElementById("seg");
 
-  // --- calculator state (integer only) ---
   let current = "0";
   let total = 0;
   let op = null;
   let reset = false;
 
-  // Hard 10-digit cap for typing
   const MAX_DIGITS = 10;
 
   // 7-seg mapping (a b c d e f g)
@@ -153,7 +148,6 @@
 
   function clampForDisplay(s){
     s = String(s);
-    // keep within 10 chars visually; if negative, keep '-' + last 9
     if (s.length <= MAX_DIGITS) return s;
     if (s[0] === "-") return "-" + s.slice(-(MAX_DIGITS-1));
     return s.slice(-MAX_DIGITS);
@@ -177,28 +171,30 @@
     const s = clampForDisplay(text);
     clearSVG();
 
-    // Fit to actual display size (prevents clipping on any screen)
-    const W = svg.clientWidth || 300;
+    const W = svg.clientWidth || 340;
     const H = svg.clientHeight || 64;
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
-    // digit box geometry
-    const dw = 24;        // digit width
-    const dh = 46;        // digit height
-    const gap = 6;        // between digits
-    const stroke = 5;     // segment thickness
-    const pad = 6;        // inner margin in display
+    // force enough horizontal space so 10 digits never squish or clip
+    const FORCE_W = Math.max(W, 340);
+    svg.setAttribute("viewBox", `0 0 ${FORCE_W} ${H}`);
 
-    // total width of rendered digits
+    // slightly wider digits / spacing for readability
+    const dw = 26;
+    const dh = 46;
+    const gap = 7;
+    const stroke = 5;
+    const pad = 10;
+
     const n = s.length;
     const totalW = n * dw + (n - 1) * gap;
 
-    // Right-align inside display with padding, vertically center
-    let x = Math.max(pad, W - pad - totalW);
+    // Right align with padding; vertical center
+    let x = Math.max(pad, FORCE_W - pad - totalW);
     const y = (H - dh) / 2;
 
-    const on = "#0a120e";
-    const off = "rgba(10,18,14,.18)";
+    // lighter "ink" + much fainter off segments
+    const on  = "rgba(10,18,14,.72)";
+    const off = "rgba(10,18,14,.06)";
 
     for (let i = 0; i < n; i++){
       const ch = s[i];
@@ -207,23 +203,15 @@
       const x0 = x + i * (dw + gap);
       const y0 = y;
 
-      // Segment endpoints (a,b,c,d,e,f,g)
       const p = 4;
 
-      // a (top)
-      const a = [x0+p, y0+p, x0+dw-p, y0+p];
-      // b (upper right)
-      const b = [x0+dw-p, y0+p, x0+dw-p, y0+dh/2-p];
-      // c (lower right)
-      const c = [x0+dw-p, y0+dh/2+p, x0+dw-p, y0+dh-p];
-      // d (bottom)
-      const d = [x0+p, y0+dh-p, x0+dw-p, y0+dh-p];
-      // e (lower left)
-      const e = [x0+p, y0+dh/2+p, x0+p, y0+dh-p];
-      // f (upper left)
-      const f = [x0+p, y0+p, x0+p, y0+dh/2-p];
-      // g (middle)
-      const g = [x0+p, y0+dh/2, x0+dw-p, y0+dh/2];
+      const a = [x0+p,      y0+p,        x0+dw-p,   y0+p];
+      const b = [x0+dw-p,   y0+p,        x0+dw-p,   y0+dh/2-p];
+      const c = [x0+dw-p,   y0+dh/2+p,   x0+dw-p,   y0+dh-p];
+      const d = [x0+p,      y0+dh-p,     x0+dw-p,   y0+dh-p];
+      const e = [x0+p,      y0+dh/2+p,   x0+p,      y0+dh-p];
+      const f = [x0+p,      y0+p,        x0+p,      y0+dh/2-p];
+      const g = [x0+p,      y0+dh/2,     x0+dw-p,   y0+dh/2];
 
       const segs = [a,b,c,d,e,f,g];
 
@@ -249,7 +237,7 @@
 
   function digit(d){
     if (reset){ current="0"; reset=false; }
-    if (current.length >= MAX_DIGITS) return;    // HARD CAP: ignore input
+    if (current.length >= MAX_DIGITS) return; // HARD CAP
     current = (current === "0") ? d : (current + d);
     update();
   }
@@ -282,9 +270,7 @@
     else if (k === "C") clearAll();
   });
 
-  // ensure correct render after layout/fonts/etc.
   window.addEventListener("resize", update);
-
   update();
 </script>
 </body>
