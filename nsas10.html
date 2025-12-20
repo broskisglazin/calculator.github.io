@@ -15,19 +15,21 @@
   }
 
   .calc{
-    width: 460px; /* expanded so 10 digits always fit comfortably */
+    width: 460px;
     padding: 18px;
     border-radius: 24px;
     background: linear-gradient(180deg,#1a1a22,#101018);
     box-shadow: 0 32px 90px rgba(0,0,0,.65);
   }
 
-  .label{
-    font: 700 14px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  /* Bonus title */
+  .brand{
+    text-align:center;
+    margin: 2px 0 12px;
+    font: 700 14px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
     letter-spacing: .18em;
-    color: rgba(238,238,255,.85);
-    text-align: center;
-    margin: 2px 0 14px;
+    color: rgba(255,255,255,.65);
+    text-transform: uppercase;
     user-select:none;
   }
 
@@ -48,15 +50,16 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
   }
 
+  /* Dimmer, darker green display */
   .display{
     flex:1;
     height: 64px;
     border-radius: 12px;
-    background: linear-gradient(#bfcbb4,#9eab91); /* dimmed (darker green) */
-    border: 1px solid rgba(0,0,0,.25);
+    background: linear-gradient(#7f9078,#5f6f59);
+    border: 1px solid rgba(0,0,0,.35);
     box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.45),
-      inset 0 -10px 20px rgba(0,0,0,.18);
+      inset 0 3px 0 rgba(255,255,255,.18),
+      inset 0 -10px 20px rgba(0,0,0,.30);
     padding: 0 12px;
     display:flex;
     align-items:center;
@@ -108,7 +111,7 @@
 
 <body>
   <div class="calc">
-    <div class="label">NS-AS10 SOLAR</div>
+    <div class="brand">NS-AS10 SOLAR</div>
 
     <div class="top">
       <div class="solar"></div>
@@ -142,8 +145,10 @@
 
   const MAX_DIGITS = 10;
 
+  // error / blink state
   let overflow = false;
-  let blinkOn = true;
+  let blinkPhase = true; // toggles to blink OFLO
+  const BLINK_MS = 500;
 
   // 7-seg mapping (a b c d e f g)
   const DIG = {
@@ -158,9 +163,13 @@
     "8": [1,1,1,1,1,1,1],
     "9": [1,1,1,1,0,1,1],
     "-": [0,0,0,0,0,0,1],
-    "O": [1,1,1,1,1,1,0],          // like 0
-    "F": [1,0,0,0,1,1,1],
-    "L": [0,0,0,1,1,1,0],
+
+    // letters for OFLO
+    "O": [1,1,1,1,1,1,0],         // same as 0
+    "F": [1,0,0,0,1,1,1],         // a, e, f, g
+    "L": [0,0,0,1,1,1,0],         // d, e, f
+
+    // blank
     " ": [0,0,0,0,0,0,0]
   };
 
@@ -169,6 +178,20 @@
     if (s.length <= MAX_DIGITS) return s;
     if (s[0] === "-") return "-" + s.slice(-(MAX_DIGITS-1));
     return s.slice(-MAX_DIGITS);
+  }
+
+  function setOverflow(){
+    overflow = true;
+    op = null;
+    reset = true;
+    update();
+  }
+
+  function fitsDigits(n){
+    const s = String(Math.trunc(n));
+    if (s.length <= MAX_DIGITS) return true;
+    if (s[0] === "-" && s.length <= MAX_DIGITS) return true;
+    return false;
   }
 
   function clearSVG(){
@@ -185,34 +208,31 @@
     return el;
   }
 
-  function render7Seg(text, showCursor){
-    const s = clampForDisplay(text);
+  function render7Seg(text){
     clearSVG();
 
     const W = svg.clientWidth || 340;
     const H = svg.clientHeight || 64;
 
-    // force enough horizontal space so 10 digits never squish or clip
     const FORCE_W = Math.max(W, 340);
     svg.setAttribute("viewBox", `0 0 ${FORCE_W} ${H}`);
 
-    // slightly wider digits / spacing for readability
     const dw = 26;
     const dh = 46;
     const gap = 7;
     const stroke = 5;
     const pad = 10;
 
+    const s = String(text);
     const n = s.length;
     const totalW = n * dw + (n - 1) * gap;
 
-    // Right align with padding; vertical center
     let x = Math.max(pad, FORCE_W - pad - totalW);
     const y = (H - dh) / 2;
 
-    // lighter "ink" + much fainter off segments
-    const on  = "rgba(10,18,14,.72)";
-    const off = "rgba(10,18,14,.06)";
+    // darker green "ink"
+    const on  = "rgba(2, 26, 14, .78)";
+    const off = "rgba(2, 26, 14, .08)";
 
     for (let i = 0; i < n; i++){
       const ch = s[i];
@@ -238,27 +258,24 @@
         svg.appendChild(line(x1,y1,x2,y2, seg[k] ? on : off, stroke));
       }
     }
+  }
 
-    // Blinking underscore cursor UNDER the number (not an extra digit)
-    if (showCursor && n > 0){
-      const x0 = x + (n - 1) * (dw + gap);
-      const y0 = y;
-      const cursorY = Math.min(H - 4, y0 + dh + 6);
-      const p = 4;
-      svg.appendChild(line(x0+p, cursorY, x0+dw-p, cursorY, on, stroke));
+  function getDisplayText(){
+    if (overflow){
+      return blinkPhase ? "OFLO" : "    ";
     }
+    return clampForDisplay(current);
   }
 
   function update(){
-    if (overflow){
-      render7Seg(blinkOn ? "OFLO" : "    ", false);
-      return;
-    }
-    render7Seg(current, blinkOn); // blinkOn drives cursor blink
+    render7Seg(getDisplayText());
   }
 
   function clearAll(){
-    current = "0"; total = 0; op = null; reset = false;
+    current = "0";
+    total = 0;
+    op = null;
+    reset = false;
     overflow = false;
     update();
   }
@@ -267,24 +284,34 @@
     if (op === null) total = v;
     else if (op === "+") total += v;
     else if (op === "-") total -= v;
-  }
 
-  function setOverflow(){
-    overflow = true;
-    update();
+    if (!fitsDigits(total)) setOverflow();
   }
 
   function digit(d){
     if (overflow) return;
-    if (reset){ current="0"; reset=false; }
-    if (current.length >= MAX_DIGITS){ setOverflow(); return; }
+
+    if (reset){
+      current = "0";
+      reset = false;
+    }
+
+    // HARD CAP -> overflow screen
+    if (current.length >= MAX_DIGITS){
+      setOverflow();
+      return;
+    }
+
     current = (current === "0") ? d : (current + d);
     update();
   }
 
   function oper(o){
     if (overflow) return;
+
     apply(+current);
+    if (overflow) return;
+
     op = o;
     current = clampForDisplay(total);
     reset = true;
@@ -293,7 +320,10 @@
 
   function equals(){
     if (overflow) return;
+
     apply(+current);
+    if (overflow) return;
+
     op = null;
     current = clampForDisplay(total);
     reset = true;
@@ -305,17 +335,21 @@
     if (!b) return;
     const k = b.dataset.k;
 
-    if (k === "C") { clearAll(); return; }
-    if (overflow) return;
+    // If overflowed, ONLY C works
+    if (overflow && k !== "C") return;
 
     if (k >= "0" && k <= "9") digit(k);
     else if (k === "+") oper("+");
     else if (k === "-" || k === "−") oper("-");
     else if (k === "=") equals();
+    else if (k === "C") clearAll();
   });
 
-  // blink for OFLO + cursor
-  setInterval(() => { blinkOn = !blinkOn; update(); }, 500);
+  // Blink timer for OFLO
+  setInterval(() => {
+    blinkPhase = !blinkPhase;
+    update();
+  }, BLINK_MS);
 
   window.addEventListener("resize", update);
   update();
