@@ -15,11 +15,20 @@
   }
 
   .calc{
-    width: 460px; /* expanded so 10 digits always fit comfortably */
+    width: 460px;
     padding: 18px;
     border-radius: 24px;
     background: linear-gradient(180deg,#1a1a22,#101018);
     box-shadow: 0 32px 90px rgba(0,0,0,.65);
+  }
+
+  .brand{
+    text-align:center;
+    margin: 2px 0 12px;
+    color: rgba(255,255,255,.72);
+    font: 700 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    letter-spacing: 2.2px;
+    user-select:none;
   }
 
   .top{
@@ -39,15 +48,16 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
   }
 
+  /* darker green / dimmer display */
   .display{
     flex:1;
     height: 64px;
     border-radius: 12px;
-    background: linear-gradient(#cfd6c4,#aeb8a0);
-    border: 1px solid rgba(0,0,0,.25);
+    background: linear-gradient(#8f9f84,#5f7057);
+    border: 1px solid rgba(0,0,0,.35);
     box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.45),
-      inset 0 -10px 20px rgba(0,0,0,.18);
+      inset 0 3px 0 rgba(255,255,255,.22),
+      inset 0 -10px 20px rgba(0,0,0,.26);
     padding: 0 12px;
     display:flex;
     align-items:center;
@@ -99,6 +109,8 @@
 
 <body>
   <div class="calc">
+    <div class="brand">NS-AS10 SOLAR</div>
+
     <div class="top">
       <div class="solar"></div>
       <div class="display">
@@ -128,8 +140,10 @@
   let total = 0;
   let op = null;
   let reset = false;
+  let error = false;
 
   const MAX_DIGITS = 10;
+  const OVERFLOW_MSG = "OVERFLOW";
 
   // 7-seg mapping (a b c d e f g)
   const DIG = {
@@ -143,14 +157,30 @@
     "7": [1,1,1,0,0,0,0],
     "8": [1,1,1,1,1,1,1],
     "9": [1,1,1,1,0,1,1],
-    "-": [0,0,0,0,0,0,1]
+    "-": [0,0,0,0,0,0,1],
+    " ": [0,0,0,0,0,0,0],
+
+    // Letters for OVERFLOW (approximate 7-seg)
+    "O": [1,1,1,1,1,1,0],               // like 0
+    "V": [0,1,1,1,1,1,0],               // like U
+    "E": [1,0,0,1,1,1,1],
+    "R": [1,1,0,0,1,1,1],               // like P-ish
+    "F": [1,0,0,0,1,1,1],
+    "L": [0,0,0,1,1,1,0],
+    "W": [0,1,1,1,1,1,0]                // like U
   };
 
-  function clampForDisplay(s){
+  function exceedsLimit(s){
     s = String(s);
-    if (s.length <= MAX_DIGITS) return s;
-    if (s[0] === "-") return "-" + s.slice(-(MAX_DIGITS-1));
-    return s.slice(-MAX_DIGITS);
+    if (s === "NaN" || s === "Infinity" || s === "-Infinity") return true;
+    if (s[0] === "-") return s.length > MAX_DIGITS; // includes the '-'
+    return s.length > MAX_DIGITS;
+  }
+
+  function setError(msg){
+    error = true;
+    current = msg;
+    update();
   }
 
   function clearSVG(){
@@ -168,17 +198,15 @@
   }
 
   function render7Seg(text){
-    const s = clampForDisplay(text);
+    const s = String(text).slice(0, 12); // safety; display layout handles actual width
     clearSVG();
 
     const W = svg.clientWidth || 340;
     const H = svg.clientHeight || 64;
 
-    // force enough horizontal space so 10 digits never squish or clip
     const FORCE_W = Math.max(W, 340);
     svg.setAttribute("viewBox", `0 0 ${FORCE_W} ${H}`);
 
-    // slightly wider digits / spacing for readability
     const dw = 26;
     const dh = 46;
     const gap = 7;
@@ -192,13 +220,13 @@
     let x = Math.max(pad, FORCE_W - pad - totalW);
     const y = (H - dh) / 2;
 
-    // lighter "ink" + much fainter off segments
-    const on  = "rgba(10,18,14,.72)";
-    const off = "rgba(10,18,14,.06)";
+    // slightly dimmer ink to match darker display
+    const on  = "rgba(10,18,14,.62)";
+    const off = "rgba(10,18,14,.05)";
 
     for (let i = 0; i < n; i++){
-      const ch = s[i];
-      const seg = DIG[ch] || DIG["0"];
+      const ch = s[i].toUpperCase();
+      const seg = DIG[ch] || DIG[" "];
 
       const x0 = x + i * (dw + gap);
       const y0 = y;
@@ -225,7 +253,11 @@
   function update(){ render7Seg(current); }
 
   function clearAll(){
-    current = "0"; total = 0; op = null; reset = false;
+    current = "0";
+    total = 0;
+    op = null;
+    reset = false;
+    error = false;
     update();
   }
 
@@ -236,24 +268,47 @@
   }
 
   function digit(d){
+    if (error) return;
+
     if (reset){ current="0"; reset=false; }
-    if (current.length >= MAX_DIGITS) return; // HARD CAP
-    current = (current === "0") ? d : (current + d);
+
+    const next = (current === "0") ? d : (current + d);
+    if (exceedsLimit(next)) {
+      setError(OVERFLOW_MSG);
+      return;
+    }
+
+    current = next;
     update();
   }
 
   function oper(o){
+    if (error) return;
+
     apply(+current);
+    if (exceedsLimit(total)) {
+      setError(OVERFLOW_MSG);
+      return;
+    }
+
     op = o;
-    current = clampForDisplay(total);
+    current = String(total);
     reset = true;
     update();
   }
 
   function equals(){
+    if (error) return;
+
     apply(+current);
     op = null;
-    current = clampForDisplay(total);
+
+    if (exceedsLimit(total)) {
+      setError(OVERFLOW_MSG);
+      return;
+    }
+
+    current = String(total);
     reset = true;
     update();
   }
@@ -262,6 +317,9 @@
     const b = e.target.closest("button");
     if (!b) return;
     const k = b.dataset.k;
+
+    // When error, only C works
+    if (error && k !== "C") return;
 
     if (k >= "0" && k <= "9") digit(k);
     else if (k === "+") oper("+");
