@@ -22,12 +22,14 @@
     box-shadow: 0 32px 90px rgba(0,0,0,.65);
   }
 
+  /* Bonus title */
   .brand{
     text-align:center;
     margin: 2px 0 12px;
-    color: rgba(255,255,255,.72);
-    font: 700 14px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    letter-spacing: 2.2px;
+    font: 700 14px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    letter-spacing: .18em;
+    color: rgba(255,255,255,.65);
+    text-transform: uppercase;
     user-select:none;
   }
 
@@ -48,16 +50,16 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
   }
 
-  /* darker green / dimmer display */
+  /* Dimmer, darker green display */
   .display{
     flex:1;
     height: 64px;
     border-radius: 12px;
-    background: linear-gradient(#8f9f84,#5f7057);
+    background: linear-gradient(#7f9078,#5f6f59);
     border: 1px solid rgba(0,0,0,.35);
     box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.22),
-      inset 0 -10px 20px rgba(0,0,0,.26);
+      inset 0 3px 0 rgba(255,255,255,.18),
+      inset 0 -10px 20px rgba(0,0,0,.30);
     padding: 0 12px;
     display:flex;
     align-items:center;
@@ -140,10 +142,13 @@
   let total = 0;
   let op = null;
   let reset = false;
-  let error = false;
 
   const MAX_DIGITS = 10;
-  const OVERFLOW_MSG = "OVERFLOW";
+
+  // error / blink state
+  let overflow = false;
+  let blinkPhase = true; // toggles to blink OFLO + cursor
+  const BLINK_MS = 500;
 
   // 7-seg mapping (a b c d e f g)
   const DIG = {
@@ -158,29 +163,37 @@
     "8": [1,1,1,1,1,1,1],
     "9": [1,1,1,1,0,1,1],
     "-": [0,0,0,0,0,0,1],
-    " ": [0,0,0,0,0,0,0],
 
-    // Letters for OVERFLOW (approximate 7-seg)
-    "O": [1,1,1,1,1,1,0],               // like 0
-    "V": [0,1,1,1,1,1,0],               // like U
-    "E": [1,0,0,1,1,1,1],
-    "R": [1,1,0,0,1,1,1],               // like P-ish
-    "F": [1,0,0,0,1,1,1],
-    "L": [0,0,0,1,1,1,0],
-    "W": [0,1,1,1,1,1,0]                // like U
+    // letters for OFLO
+    "O": [1,1,1,1,1,1,0],         // same as 0
+    "F": [1,0,0,0,1,1,1],         // a, e, f, g
+    "L": [0,0,0,1,1,1,0],         // d, e, f
+
+    // cursor + blank
+    "_": [0,0,0,1,0,0,0],         // underline cursor (segment d)
+    " ": [0,0,0,0,0,0,0]
   };
 
-  function exceedsLimit(s){
+  function clampForDisplay(s){
     s = String(s);
-    if (s === "NaN" || s === "Infinity" || s === "-Infinity") return true;
-    if (s[0] === "-") return s.length > MAX_DIGITS; // includes the '-'
-    return s.length > MAX_DIGITS;
+    if (s.length <= MAX_DIGITS) return s;
+    if (s[0] === "-") return "-" + s.slice(-(MAX_DIGITS-1));
+    return s.slice(-MAX_DIGITS);
   }
 
-  function setError(msg){
-    error = true;
-    current = msg;
+  function setOverflow(){
+    overflow = true;
+    op = null;
+    reset = true;
+    // keep current/total around if you want, but input is locked until C
     update();
+  }
+
+  function fitsDigits(n){
+    const s = String(Math.trunc(n));
+    if (s.length <= MAX_DIGITS) return true;
+    if (s[0] === "-" && s.length <= MAX_DIGITS) return true;
+    return false;
   }
 
   function clearSVG(){
@@ -198,7 +211,6 @@
   }
 
   function render7Seg(text){
-    const s = String(text).slice(0, 12); // safety; display layout handles actual width
     clearSVG();
 
     const W = svg.clientWidth || 340;
@@ -213,20 +225,20 @@
     const stroke = 5;
     const pad = 10;
 
+    const s = String(text);
     const n = s.length;
     const totalW = n * dw + (n - 1) * gap;
 
-    // Right align with padding; vertical center
     let x = Math.max(pad, FORCE_W - pad - totalW);
     const y = (H - dh) / 2;
 
-    // slightly dimmer ink to match darker display
-    const on  = "rgba(10,18,14,.62)";
-    const off = "rgba(10,18,14,.05)";
+    // darker green "ink"
+    const on  = "rgba(2, 26, 14, .78)";
+    const off = "rgba(2, 26, 14, .08)";
 
     for (let i = 0; i < n; i++){
-      const ch = s[i].toUpperCase();
-      const seg = DIG[ch] || DIG[" "];
+      const ch = s[i];
+      const seg = DIG[ch] || DIG["0"];
 
       const x0 = x + i * (dw + gap);
       const y0 = y;
@@ -250,14 +262,32 @@
     }
   }
 
-  function update(){ render7Seg(current); }
+  function getDisplayText(){
+    if (overflow){
+      return blinkPhase ? "OFLO" : "    ";
+    }
+
+    // normal display (hard clamp to 10 digits)
+    let s = clampForDisplay(current);
+
+    // blinking cursor (like calculator underline) while actively typing
+    const cursorActive = !reset; // show cursor only during entry
+    if (cursorActive && blinkPhase && s.length < MAX_DIGITS){
+      s += "_";
+    }
+    return s;
+  }
+
+  function update(){
+    render7Seg(getDisplayText());
+  }
 
   function clearAll(){
     current = "0";
     total = 0;
     op = null;
     reset = false;
-    error = false;
+    overflow = false;
     update();
   }
 
@@ -265,50 +295,48 @@
     if (op === null) total = v;
     else if (op === "+") total += v;
     else if (op === "-") total -= v;
+
+    if (!fitsDigits(total)) setOverflow();
   }
 
   function digit(d){
-    if (error) return;
+    if (overflow) return;
 
-    if (reset){ current="0"; reset=false; }
+    if (reset){
+      current = "0";
+      reset = false;
+    }
 
-    const next = (current === "0") ? d : (current + d);
-    if (exceedsLimit(next)) {
-      setError(OVERFLOW_MSG);
+    // HARD CAP -> overflow screen
+    if (current.length >= MAX_DIGITS){
+      setOverflow();
       return;
     }
 
-    current = next;
+    current = (current === "0") ? d : (current + d);
     update();
   }
 
   function oper(o){
-    if (error) return;
+    if (overflow) return;
 
     apply(+current);
-    if (exceedsLimit(total)) {
-      setError(OVERFLOW_MSG);
-      return;
-    }
+    if (overflow) return;
 
     op = o;
-    current = String(total);
+    current = clampForDisplay(total);
     reset = true;
     update();
   }
 
   function equals(){
-    if (error) return;
+    if (overflow) return;
 
     apply(+current);
+    if (overflow) return;
+
     op = null;
-
-    if (exceedsLimit(total)) {
-      setError(OVERFLOW_MSG);
-      return;
-    }
-
-    current = String(total);
+    current = clampForDisplay(total);
     reset = true;
     update();
   }
@@ -318,8 +346,8 @@
     if (!b) return;
     const k = b.dataset.k;
 
-    // When error, only C works
-    if (error && k !== "C") return;
+    // If overflowed, ONLY C works
+    if (overflow && k !== "C") return;
 
     if (k >= "0" && k <= "9") digit(k);
     else if (k === "+") oper("+");
@@ -327,6 +355,12 @@
     else if (k === "=") equals();
     else if (k === "C") clearAll();
   });
+
+  // Blink timer for OFLO + cursor
+  setInterval(() => {
+    blinkPhase = !blinkPhase;
+    update();
+  }, BLINK_MS);
 
   window.addEventListener("resize", update);
   update();
