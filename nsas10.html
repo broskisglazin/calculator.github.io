@@ -6,37 +6,86 @@
 <title>NORTHSTAR AS10</title>
 
 <style>
+  :root{ color-scheme: dark; }
+
   body{
     margin:0;
-    background:#0b0b12;
+    min-height:100vh;
     display:grid;
     place-items:center;
-    min-height:100vh;
+    background:
+      radial-gradient(1200px 900px at 25% 15%, rgba(255,255,255,.06), transparent 60%),
+      radial-gradient(900px 700px at 80% 70%, rgba(255,255,255,.04), transparent 55%),
+      linear-gradient(180deg, #06060a 0%, #040406 100%);
+    color:#eef;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  }
+
+  /* Subtle framing like the brand page */
+  .stage{
+    width: min(980px, 92vw);
+    padding: 34px 0 48px;
+    display:grid;
+    place-items:center;
+    gap:18px;
+  }
+
+  /* "Northstar Industries" vibe: stark, centered, spaced */
+  .brand{
+    text-align:center;
+    user-select:none;
+    display:grid;
+    gap:8px;
+    place-items:center;
+  }
+
+  .brandMark{
+    width: min(520px, 86vw);
+    height: auto;
+    display:block;
+    border-radius: 14px;
+    box-shadow:
+      0 18px 70px rgba(0,0,0,.55),
+      0 0 0 1px rgba(255,255,255,.06);
+    opacity: .98;
+  }
+
+  .brandSub{
+    font-size: 12px;
+    letter-spacing: .42em;
+    text-transform: uppercase;
+    opacity: .78;
   }
 
   .calc{
     width: 460px;
     padding: 18px;
     border-radius: 24px;
-    background: linear-gradient(180deg,#1a1a22,#101018);
-    box-shadow: 0 32px 90px rgba(0,0,0,.65);
+    background: linear-gradient(180deg, rgba(18,18,24,.92), rgba(10,10,14,.92));
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow:
+      0 32px 90px rgba(0,0,0,.65),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    position:relative;
+    overflow:hidden;
   }
 
-  /* Bonus title */
-  .brand{
-    text-align:center;
-    margin: 2px 0 12px;
-    font: 700 14px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    letter-spacing: .18em;
-    color: rgba(255,255,255,.65);
-    text-transform: uppercase;
-    user-select:none;
+  /* A barely-there sheen, not gamer RGB */
+  .calc:before{
+    content:"";
+    position:absolute;
+    inset:-2px;
+    background:
+      radial-gradient(900px 240px at 50% 0%, rgba(255,255,255,.06), transparent 60%);
+    pointer-events:none;
   }
 
   .top{
     display:flex;
     gap:14px;
     margin-bottom:16px;
+    position:relative;
+    z-index:1;
   }
 
   .solar{
@@ -44,33 +93,49 @@
     height: 64px;
     border-radius: 12px;
     background:
-      repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 2px, transparent 2px 10px),
-      linear-gradient(135deg,#3a2b1f,#1f1612);
+      repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 2px, transparent 2px 10px),
+      linear-gradient(135deg,#2b221a,#120f0c);
     border:1px solid rgba(255,255,255,.12);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
+    box-shadow:
+      inset 0 2px 6px rgba(0,0,0,.65),
+      0 8px 22px rgba(0,0,0,.45);
   }
 
-  /* Dimmer, darker green display */
+  /* Display: more "instrument" than toy */
   .display{
     flex:1;
     height: 64px;
     border-radius: 12px;
-    background: linear-gradient(#7f9078,#5f6f59);
-    border: 1px solid rgba(0,0,0,.35);
+    background: linear-gradient(#7c8b74,#5b6a55);
+    border: 1px solid rgba(0,0,0,.42);
     box-shadow:
-      inset 0 3px 0 rgba(255,255,255,.18),
-      inset 0 -10px 20px rgba(0,0,0,.30);
+      inset 0 2px 0 rgba(255,255,255,.16),
+      inset 0 -12px 18px rgba(0,0,0,.28),
+      0 8px 22px rgba(0,0,0,.40);
     padding: 0 12px;
     display:flex;
     align-items:center;
     justify-content:center;
     overflow:hidden;
+    position:relative;
+  }
+
+  /* faint glass glare line */
+  .display:after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background: linear-gradient(120deg, transparent 0 45%, rgba(255,255,255,.08) 52%, transparent 60%);
+    opacity:.35;
+    pointer-events:none;
   }
 
   #seg{
     width: 100%;
     height: 100%;
     display:block;
+    position:relative;
+    z-index:1;
   }
 
   .keys{
@@ -78,6 +143,8 @@
     grid-template-columns: repeat(10,1fr);
     gap: 10px;
     margin-top: 18px;
+    position:relative;
+    z-index:1;
   }
 
   .bottom{
@@ -85,53 +152,87 @@
     grid-template-columns: repeat(4,1fr);
     gap: 12px;
     margin-top: 14px;
+    position:relative;
+    z-index:1;
   }
 
   button{
     height: 58px;
     border-radius: 16px;
     border: 1px solid rgba(255,255,255,.12);
-    background: linear-gradient(#2a2a36,#1c1c26);
+    background: linear-gradient(#262632,#161620);
     color:#eef;
     font-size: 18px;
     cursor:pointer;
-    box-shadow: 0 7px 0 rgba(0,0,0,.40);
+    box-shadow:
+      0 8px 0 rgba(0,0,0,.42),
+      0 14px 26px rgba(0,0,0,.28),
+      inset 0 1px 0 rgba(255,255,255,.06);
     user-select:none;
+    letter-spacing:.02em;
+  }
+  button:hover{
+    filter: brightness(1.07);
+    border-color: rgba(255,255,255,.16);
   }
   button:active{
     transform: translateY(4px);
-    box-shadow: 0 3px 0 rgba(0,0,0,.40);
+    box-shadow:
+      0 4px 0 rgba(0,0,0,.42),
+      0 10px 18px rgba(0,0,0,.22),
+      inset 0 1px 0 rgba(255,255,255,.05);
   }
 
-  .op{ background: linear-gradient(#33405c,#222c40); }
-  .eq{ background: linear-gradient(#2f5a3a,#1f3e29); }
-  .clear{ background: linear-gradient(#5a2c2c,#3a1c1c); }
+  /* Make ops feel “engraved” not colorful */
+  .op{
+    background: linear-gradient(#1f2632,#141a22);
+    border-color: rgba(255,255,255,.12);
+  }
+  .eq{
+    background: linear-gradient(#1c2a22,#121a16);
+    border-color: rgba(255,255,255,.12);
+  }
+  .clear{
+    background: linear-gradient(#2a1b1b,#1a1111);
+    border-color: rgba(255,255,255,.12);
+  }
+
+  @media (max-width: 520px){
+    .calc{ width: min(460px, 92vw); }
+  }
 </style>
 </head>
 
 <body>
-  <div class="calc">
-    <div class="brand">NS-AS10 SOLAR</div>
+  <div class="stage">
+    <div class="brand">
+      <!-- Put your actual brand PNG here (recommended). -->
+      <!-- If you want it embedded as base64 like before, tell me and I’ll paste it in. -->
+      <img class="brandMark" src="./northstar-industries.png" alt="Northstar Industries">
+      <div class="brandSub">NS-AS10 SOLAR</div>
+    </div>
 
-    <div class="top">
-      <div class="solar"></div>
-      <div class="display">
-        <svg id="seg" viewBox="0 0 340 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+    <div class="calc">
+      <div class="top">
+        <div class="solar"></div>
+        <div class="display">
+          <svg id="seg" viewBox="0 0 340 64" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+        </div>
       </div>
-    </div>
 
-    <div class="keys" id="keys">
-      <button data-k="0">0</button><button data-k="1">1</button><button data-k="2">2</button>
-      <button data-k="3">3</button><button data-k="4">4</button><button data-k="5">5</button>
-      <button data-k="6">6</button><button data-k="7">7</button><button data-k="8">8</button>
-      <button data-k="9">9</button>
-    </div>
+      <div class="keys" id="keys">
+        <button data-k="0">0</button><button data-k="1">1</button><button data-k="2">2</button>
+        <button data-k="3">3</button><button data-k="4">4</button><button data-k="5">5</button>
+        <button data-k="6">6</button><button data-k="7">7</button><button data-k="8">8</button>
+        <button data-k="9">9</button>
+      </div>
 
-    <div class="bottom" id="bottom">
-      <button class="op" data-k="+">+</button>
-      <button class="op" data-k="-">−</button>
-      <button class="eq" data-k="=">=</button>
-      <button class="clear" data-k="C">C</button>
+      <div class="bottom" id="bottom">
+        <button class="op" data-k="+">+</button>
+        <button class="op" data-k="-">−</button>
+        <button class="eq" data-k="=">=</button>
+        <button class="clear" data-k="C">C</button>
+      </div>
     </div>
   </div>
 
